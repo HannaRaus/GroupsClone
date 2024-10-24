@@ -23,6 +23,9 @@ class MockGroupApiService implements GroupAPIService {
     @Override
     public Group create(Group group) {
         Map<Integer, Group> existing = DB.getOrDefault(group.getGroupNumber(), new ConcurrentHashMap<>());
+        if (existing.containsKey(group.getIdentifierInGroup())) {
+            throw new RuntimeException("Can't create a new group as the is already one with the same groupNumber and identifierInGroup");
+        }
         existing.put(group.getIdentifierInGroup(), group);
         DB.put(group.getGroupNumber(), existing);
         return group;
@@ -30,10 +33,13 @@ class MockGroupApiService implements GroupAPIService {
 
     @Override
     public Group update(Group group) {
-        return DB.get(group.getGroupNumber()).get(group.getIdentifierInGroup())
-                .setProp1(group.getProp1())
-                .setProp2(group.getProp2())
-                .setProp3(group.getProp3());
+        return Optional.ofNullable(DB.get(group.getGroupNumber()))
+                .map(existing -> existing.get(group.getIdentifierInGroup()))
+                .map(existing -> existing
+                        .setProp1(group.getProp1())
+                        .setProp2(group.getProp2())
+                        .setProp3(group.getProp3()))
+                .orElseThrow(() -> new RuntimeException("The group with provided number and identifier doesn't exist"));
     }
 
     @Override
